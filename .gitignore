@@ -1,0 +1,7 @@
+build/
+*cache*
+*.patch
+
+.vscode/
+.idea/
+docs/

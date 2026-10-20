@@ -1,0 +1,69 @@
+BasedOnStyle: LLVM
+
+# Indentation
+UseTab: Always
+IndentWidth: 4
+TabWidth: 4
+
+UseCRLF: false
+# AlignAfterOpenBracket: DontAlign
+AlignOperands: false
+AlignTrailingComments: false
+
+# Line length
+PointerAlignment: Left
+ReferenceAlignment: Left
+
+DerivePointerAlignment: false
+
+ColumnLimit: 100
+SpacesBeforeTrailingComments: 1
+
+# Wrapping
+BreakBeforeBraces: Custom
+BraceWrapping:
+    AfterEnum: false
+    AfterStruct: true
+    SplitEmptyFunction: false
+    AfterClass: true
+    AfterCaseLabel: false
+    AfterFunction: true
+    AfterNamespace: true
+    BeforeElse: true
+    BeforeLambdaBody: true
+    AfterControlStatement: MultiLine
+AllowShortFunctionsOnASingleLine: Empty
+# AllowShortIfStatementsOnASingleLine: Never
+# AllowShortLoopsOnASingleLine: Never
+AllowShortLambdasOnASingleLine: true
+# Empty lines
+MaxEmptyLinesToKeep: 1
+KeepEmptyLines:
+  AtEndOfFile: false
+  AtStartOfBlock: false
+  AtStartOfFile: false
+# General formatting
+SpaceBeforeParens: ControlStatements
+AlignAfterOpenBracket: Align
+
+# Keep lines readable
+PenaltyBreakString: 1000
+PenaltyBreakComment: 300
+ReflowComments: true
+
+EmptyLineBeforeAccessModifier: Always
+FixNamespaceComments: true
+LambdaBodyIndentation: Signature
+
+BreakConstructorInitializers: AfterColon
+BreakInheritanceList: AfterColon
+BreakStringLiterals: true
+BreakTemplateDeclarations: Yes
+Cpp11BracedListStyle: true
+BreakFunctionDefinitionParameters: true
+# BreakFunctionDeclarationParameters: true
+AllowAllParametersOfDeclarationOnNextLine: true
+AllowAllArgumentsOnNextLine: true
+BinPackParameters: true
+BinPackArguments: true
+
