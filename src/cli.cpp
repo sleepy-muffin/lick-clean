@@ -7,6 +7,17 @@
 
 #include <iomanip>
 
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#include <shellapi.h>
+#endif
+
 void usage(
 	std::ostream& out)
 {
@@ -195,7 +206,7 @@ int wmain()
 
 		if (WideCharToMultiByte(
 				CP_UTF8, WC_ERR_INVALID_CHARS,
-				wargv[i], -1, arg.data(), size, nullptr, nullptr) == 0)
+				argv[i], -1, arg.data(), size, nullptr, nullptr) == 0)
 		{
 			LocalFree(argv);
 			std::cerr << "Failed to convert command-line arguments to UTF-8.\n";
@@ -208,13 +219,13 @@ int wmain()
 
 	LocalFree(argv);
 
-	std::vector<char*> argv;
-	argv.reserve(args.size());
+	std::vector<char*> utf8_argv;
+	utf8_argv.reserve(args.size());
 
 	for (auto& arg : args)
-		argv.push_back(arg.data());
+		utf8_argv.push_back(arg.data());
 
-	return declick_cli(argc, argv.data(), std::cout, std::cerr);
+	return declick_cli(argc, utf8_argv.data(), std::cout, std::cerr);
 }
 #elif defined(__linux__)
 int main(
