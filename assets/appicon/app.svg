@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1024"
+     height="1024"
+     viewBox="0 0 1024 1024">
+    <defs>
+        <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#2b2b40"/>
+            <stop offset="0.55" stop-color="#1e1e2e"/>
+            <stop offset="1" stop-color="#11111b"/>
+        </linearGradient>
+
+        <radialGradient id="sheen" cx="0.26" cy="0.16" r="0.82">
+            <stop offset="0" stop-color="#cba6f7" stop-opacity="0.20"/>
+            <stop offset="0.55" stop-color="#cba6f7" stop-opacity="0.05"/>
+            <stop offset="1" stop-color="#cba6f7" stop-opacity="0"/>
+        </radialGradient>
+
+        <linearGradient id="wave" gradientUnits="userSpaceOnUse"
+                        x1="189" y1="0" x2="835" y2="0">
+            <stop offset="0" stop-color="#89b4fa"/>
+            <stop offset="0.5" stop-color="#cba6f7"/>
+            <stop offset="1" stop-color="#f5c2e7"/>
+        </linearGradient>
+
+        <linearGradient id="spark" x1="0" y1="0" x2="0.8" y2="1">
+            <stop offset="0" stop-color="#f9e2af"/>
+            <stop offset="1" stop-color="#fab387"/>
+        </linearGradient>
+
+        <radialGradient id="spark-glow" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0" stop-color="#f9e2af" stop-opacity="0.30"/>
+            <stop offset="1" stop-color="#f9e2af" stop-opacity="0"/>
+        </radialGradient>
+    </defs>
+
+    <!-- Rounded app tile -->
+    <rect x="40" y="40" width="944" height="944" rx="232" fill="url(#background)"/>
+    <rect x="40" y="40" width="944" height="944" rx="232" fill="url(#sheen)"/>
+    <rect x="42" y="42" width="940" height="940" rx="230"
+          fill="none" stroke="#ffffff" stroke-opacity="0.07" stroke-width="4"/>
+
+    <!-- Soft ground shadow -->
+    <rect x="178" y="798" width="668" height="34" rx="17"
+          fill="#000000" fill-opacity="0.28"/>
+
+    <!-- Audio waveform -->
+    <g fill="url(#wave)">
+        <rect x="189" y="490" width="58" height="140" rx="29"/>
+        <rect x="287" y="435" width="58" height="250" rx="29"/>
+        <rect x="385" y="380" width="58" height="360" rx="29"/>
+        <rect x="483" y="325" width="58" height="470" rx="29"/>
+        <rect x="581" y="380" width="58" height="360" rx="29"/>
+        <rect x="679" y="435" width="58" height="250" rx="29"/>
+        <rect x="777" y="490" width="58" height="140" rx="29"/>
+    </g>
+
+    <!-- Cleanup sparkle -->
+    <circle cx="806" cy="238" r="132" fill="url(#spark-glow)"/>
+    <path d="M806 146
+             C818 200 824 206 878 238
+             C824 270 818 276 806 330
+             C794 276 788 270 734 238
+             C788 206 794 200 806 146 Z"
+          fill="url(#spark)"/>
+    <path d="M898 318
+             C903 337 906 340 925 345
+             C906 350 903 353 898 372
+             C893 353 890 350 871 345
+             C890 340 893 337 898 318 Z"
+          fill="#f9e2af" fill-opacity="0.85"/>
+    <path d="M720 158
+             C724 172 726 174 740 178
+             C726 182 724 184 720 198
+             C716 184 714 182 700 178
+             C714 174 716 172 720 158 Z"
+          fill="#f9e2af" fill-opacity="0.7"/>
+</svg>

@@ -39,9 +39,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # The application uses Qt Widgets without moc (no Q_OBJECT anywhere), so AUTOMOC
-# stays off and the build is a plain C++23 compile.
+# stays off. AUTORCC embeds the window icon from assets/appicon.
 set(CMAKE_AUTOMOC OFF)
-set(CMAKE_AUTORCC OFF) # No embedded Resources are used yet.
+set(CMAKE_AUTORCC ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
 
@@ -67,7 +67,8 @@ target_include_directories(
 
 target_link_libraries(
         ${PROJECT_NAME}-core
-        PRIVATE shark
+        PUBLIC
+        shark
 )
 
 
@@ -84,6 +85,7 @@ set_target_properties(
 add_executable(
         ${PROJECT_NAME}
         src/ui.cpp
+        assets/appicon/app.qrc
 )
 
 target_link_libraries(

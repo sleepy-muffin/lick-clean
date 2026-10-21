@@ -1,0 +1,403 @@
+
+name: Release
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag, e.g. v0.7.5"
+        required: true
+        type: string
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    name: Linux x86_64
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do not pin this to main: the workflow also runs for pull requests,
+          # and those must build the change under test. A manual dispatch
+          # builds the branch it was started from (normally main).
+          fetch-depth: 0
+          # external/shark is a private repository. SUBMODULE_TOKEN must be a
+          # PAT with read access to it; github.token only works if the
+          # submodule is public.
+          token: ${{ secrets.SUBMODULE_TOKEN || github.token }}
+          submodules: recursive
+
+      - name: Determine version
+        id: version
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          tag="$RELEASE_TAG"
+
+          if [ -z "$tag" ] || [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            tag="dev-${GITHUB_SHA::7}"
+          fi
+
+          tag="$(echo "$tag" | sed 's#[^A-Za-z0-9._-]#-#g')"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Building version: $tag"
+
+      - name: Install CMake and Ninja
+        uses: lukka/get-cmake@latest
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang \
+            libsqlite3-dev \
+            libssl-dev \
+            libboost-dev \
+            libboost-json-dev \
+            libboost-regex-dev \
+            libboost-url-dev \
+            libjpeg-dev \
+            libpng-dev \
+            libgl-dev \
+            libopus-dev \
+            libopusenc-dev \
+            libopusfile-dev \
+            libmpg123-dev \
+            libmp3lame-dev \
+            qt6-base-dev \
+            qt6-qpa-plugins \
+            wget \
+            file
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_C_COMPILER=clang
+          -DCMAKE_CXX_COMPILER=clang++
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Build AppImage
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          executable="build/lick-clean-linux-x86_64"
+          appdir="AppDir"
+
+          if [ ! -f "$executable" ]; then
+            echo "Executable not found: $executable"
+            exit 1
+          fi
+
+          mkdir -p "$appdir/usr/bin"
+
+          cp "$executable" "$appdir/usr/bin/lick-clean"
+
+          cat > lick-clean.desktop <<'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=Lick Clean
+          Exec=lick-clean
+          Icon=lick-clean
+          Categories=AudioVideo;Audio;
+          Terminal=false
+          EOF
+
+          cp assets/appicon/app.png lick-clean.png
+
+          wget -q \
+            https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage \
+            -O linuxdeploy.AppImage
+
+          wget -q \
+            https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage \
+            -O linuxdeploy-plugin-qt.AppImage
+
+          chmod +x linuxdeploy.AppImage linuxdeploy-plugin-qt.AppImage
+
+          sudo mv linuxdeploy-plugin-qt.AppImage /usr/local/bin/linuxdeploy-plugin-qt
+
+          export QMAKE="$(command -v qmake6)"
+          export APPIMAGE_EXTRACT_AND_RUN=1
+
+          ./linuxdeploy.AppImage \
+            --appdir "$appdir" \
+            --desktop-file lick-clean.desktop \
+            --icon-file lick-clean.png \
+            --plugin qt \
+            --output appimage
+
+          appimage="$(find . -maxdepth 1 -name '*.AppImage' \
+            ! -name 'linuxdeploy.AppImage' -print -quit)"
+
+          if [ -z "$appimage" ]; then
+            echo "AppImage generation failed"
+            exit 1
+          fi
+
+          mv "$appimage" \
+            "lick-clean-${RELEASE_TAG}-linux-x86_64.AppImage"
+
+          file "lick-clean-${RELEASE_TAG}-linux-x86_64.AppImage"
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lick-clean-linux-x86_64
+          path: lick-clean-${{ steps.version.outputs.tag }}-linux-x86_64.AppImage
+          if-no-files-found: error
+
+  windows:
+    name: Windows x86_64
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Build the pull request's changes rather than main; leave the ref
+          # unset so a manual dispatch builds the branch it was started from.
+          fetch-depth: 0
+          # external/shark is private, so fetching it needs a PAT with read
+          # access to that repository (see the Linux job).
+          token: ${{ secrets.SUBMODULE_TOKEN || github.token }}
+          submodules: recursive
+
+      - name: Determine version
+        id: version
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          $tag = $env:RELEASE_TAG
+
+          if ([string]::IsNullOrWhiteSpace($tag) -or
+              $env:GITHUB_EVENT_NAME -eq "pull_request") {
+            $tag = "dev-$($env:GITHUB_SHA.Substring(0, 7))"
+          }
+
+          $tag = $tag -replace '[^A-Za-z0-9._-]', '-'
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+
+          Write-Host "Building version: $tag"
+
+      - name: Install CMake and Ninja
+        uses: lukka/get-cmake@latest
+
+      - name: Set up MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.3'
+          arch: win64_msvc2022_64
+          cache: true
+
+      - name: Restore vcpkg cache
+        id: vcpkg-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            C:\vcpkg\downloads
+            ${{ github.workspace }}\vcpkg-cache
+          # Bump this suffix whenever the port list or the runner's vcpkg
+          # baseline changes. Cache entries are immutable, so a new suffix is
+          # how a stale entry gets replaced.
+          key: vcpkg-x64-windows-release-v1
+          restore-keys: |
+            vcpkg-x64-windows-release-
+
+      - name: Install SQLite, Boost and OpenSSL
+        shell: pwsh
+        env:
+          VCPKG_BINARY_SOURCES: 'clear;files,${{ github.workspace }}\vcpkg-cache,readwrite'
+        run: |
+          # x64-windows builds Debug and Release; this is a release-only job,
+          # so use vcpkg's built-in release-only triplet instead.
+          & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" install `
+            --triplet x64-windows-release `
+            sqlite3 `
+            boost-json `
+            boost-regex `
+            boost-url `
+            boost-asio `
+            boost-beast `
+            openssl `
+            libjpeg-turbo `
+            libpng `
+            opus `
+            libopusenc `
+            opusfile `
+            mpg123 `
+            mp3lame
+
+      # Saving from a step that runs with `always()` keeps the packages built
+      # above even when a later step (for example Build) fails.
+      - name: Save vcpkg cache
+        if: always() && steps.vcpkg-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            C:\vcpkg\downloads
+            ${{ github.workspace }}\vcpkg-cache
+          key: vcpkg-x64-windows-release-v1
+
+
+      - name: Configure
+        run: |
+          $vcpkgLib = "$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows-release/lib"
+
+          # external/shark uses find_library() names that do not match the
+          # vcpkg import-library filenames on MSVC. The mpg123 1.33 port
+          # installs mpg123.lib; mpg123 1.34 renamed it to libmpg123.lib, so
+          # accept either rather than pinning one name. LAME installs
+          # libmp3lame.lib.
+          $mpg123 = @("$vcpkgLib/mpg123.lib", "$vcpkgLib/libmpg123.lib") |
+            Where-Object { Test-Path $_ } |
+            Select-Object -First 1
+          if (-not $mpg123) {
+            throw "mpg123 import library not found in $vcpkgLib"
+          }
+
+          $lame = "$vcpkgLib/libmp3lame.lib"
+          if (-not (Test-Path $lame)) {
+            throw "LAME import library not found: $lame"
+          }
+
+          cmake -S . -B build -G Ninja `
+            -DCMAKE_BUILD_TYPE=Release `
+            "-DCMAKE_PREFIX_PATH=$env:QT_ROOT_DIR" `
+            "-DMPG123_LIBRARY=$mpg123" `
+            "-DLAME_LIBRARY=$lame" `
+            "-DVCPKG_TARGET_TRIPLET=x64-windows-release" `
+            "-DCMAKE_CXX_SCAN_FOR_MODULES=OFF" `
+            "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+
+
+      - name: Build
+        shell: pwsh
+        run: |
+          cmd /c "cmake --build build --parallel > build.log 2>&1"
+          $code = $LASTEXITCODE
+
+          if ($code -ne 0) {
+            Get-Content build.log -Tail 200
+
+            # Turn the first failures into check-run annotations: the raw job
+            # log needs repository admin rights to read through the API, while
+            # annotations are publicly visible.
+            Get-Content build.log |
+              Select-String -Pattern 'error C\d+|error LNK\d+|fatal error|FAILED: |ninja: error:' |
+              Select-Object -First 10 |
+              ForEach-Object {
+                $line = $_.Line.Trim().Replace('%', '%25')
+                Write-Host "::error::$line"
+              }
+
+            exit $code
+          }
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Deploy Windows dependencies
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $exe = "build/lick-clean-windows-x86_64.exe"
+          $release = "release"
+
+          if (-not (Test-Path $exe)) {
+            throw "Executable not found: $exe"
+          }
+
+          New-Item -ItemType Directory -Force -Path $release | Out-Null
+
+          $targetExe = "lick-clean-$env:RELEASE_TAG.exe"
+          Copy-Item $exe "$release/$targetExe"
+
+          & "$env:QT_ROOT_DIR/bin/windeployqt.exe" `
+            --release `
+            --compiler-runtime `
+            "$release/$targetExe"
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "windeployqt failed"
+          }
+
+          $vcpkgBin = "$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows-release/bin"
+          $sqliteDll = "$vcpkgBin/sqlite3.dll"
+
+          if (-not (Test-Path $sqliteDll)) {
+            throw "SQLite DLL not found: $sqliteDll"
+          }
+
+          Copy-Item "$vcpkgBin/*.dll" $release
+
+          Compress-Archive `
+            -Path "$release/*" `
+            -DestinationPath "lick-clean-$env:RELEASE_TAG-windows-x86_64.zip" `
+            -CompressionLevel Optimal
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lick-clean-windows-x86_64
+          path: lick-clean-${{ steps.version.outputs.tag }}-windows-x86_64.zip
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: [linux, windows]
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: lick-clean-linux-x86_64
+          path: release
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: lick-clean-windows-x86_64
+          path: release
+
+      - name: Generate SHA256SUMS
+        working-directory: release
+        run: sha256sum * > SHA256SUMS
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
+          target_commitish: main
+          generate_release_notes: true
+          files: |
+            release/*

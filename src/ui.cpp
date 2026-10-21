@@ -20,6 +20,7 @@
 #include <QCheckBox>
 #include <QCloseEvent>
 #include <QFileInfo>
+#include <QIcon>
 
 #include <filesystem>
 #include <memory>
@@ -806,6 +807,8 @@ int main(int argc, char* argv[])
 	QApplication::setApplicationName("Lick Clean");
 	QApplication::setApplicationDisplayName("Lick Clean");
 	QApplication::setOrganizationName("Lick Clean");
+	QApplication::setDesktopFileName("lick-clean");
+	QApplication::setWindowIcon(QIcon(":/icons/app.png"));
 
 	MainWindow window;
 	window.show();
