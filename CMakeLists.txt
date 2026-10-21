@@ -46,6 +46,15 @@ set(CMAKE_AUTORCC ON)
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
 
 # shark library
+#
+# Only the audio module is used. The optional modules are turned off before
+# shark is added because shark resolves the dependencies of every enabled
+# module at configure time: image would require OpenGL/JPEG/PNG, external
+# Boost.JSON and sqlite3 SQLite, none of which this project touches.
+set(SHARK_BUILD_EXTERNAL OFF CACHE BOOL "Build shark's Boost.JSON helpers")
+set(SHARK_BUILD_SQLITE3 OFF CACHE BOOL "Build shark's SQLite3 helpers")
+set(SHARK_BUILD_IMAGE OFF CACHE BOOL "Build shark's OpenGL/JPEG/PNG helpers")
+
 add_subdirectory(
         external/shark
         build/shark
@@ -68,8 +77,24 @@ target_include_directories(
 target_link_libraries(
         ${PROJECT_NAME}-core
         PUBLIC
-        shark
+        shark::audio
 )
+
+# vcpkg's opusfile/opusenc import libraries do not record their libogg
+# dependency on Windows the way ELF shared libraries do, so the linker has to
+# be told about ogg (and opus) explicitly or opusfile's ogg_* symbols stay
+# unresolved. shark only looks for opusfile/opusenc itself.
+if (WIN32)
+    find_library(OGG_LIBRARY NAMES ogg libogg REQUIRED)
+    find_library(OPUS_LIBRARY NAMES opus libopus REQUIRED)
+
+    target_link_libraries(
+            ${PROJECT_NAME}-core
+            PUBLIC
+            ${OGG_LIBRARY}
+            ${OPUS_LIBRARY}
+    )
+endif ()
 
 
 set_target_properties(

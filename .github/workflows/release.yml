@@ -226,25 +226,21 @@ jobs:
           restore-keys: |
             vcpkg-x64-windows-release-
 
-      - name: Install SQLite, Boost and OpenSSL
+      - name: Install audio dependencies
         shell: pwsh
         env:
           VCPKG_BINARY_SOURCES: 'clear;files,${{ github.workspace }}\vcpkg-cache,readwrite'
         run: |
           # x64-windows builds Debug and Release; this is a release-only job,
           # so use vcpkg's built-in release-only triplet instead.
+          #
+          # Only shark's audio module is linked, so these are the only ports
+          # the build resolves. libogg is a dependency of opusfile either way;
+          # it is named here because CMake links it explicitly on Windows.
           & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" install `
             --triplet x64-windows-release `
-            sqlite3 `
-            boost-json `
-            boost-regex `
-            boost-url `
-            boost-asio `
-            boost-beast `
-            openssl `
-            libjpeg-turbo `
-            libpng `
             opus `
+            libogg `
             libopusenc `
             opusfile `
             mpg123 `
