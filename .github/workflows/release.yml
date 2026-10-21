@@ -344,14 +344,24 @@ jobs:
             throw "windeployqt failed"
           }
 
+          # Only shark's audio module is linked now, so the runtime DLLs copied
+          # here are the audio ones and their dependencies. Assert that the
+          # directory yields something instead of naming each DLL: the
+          # filenames differ between vcpkg port versions (mpg123 1.33 ships
+          # mpg123.dll, 1.34 ships libmpg123.dll, for example).
           $vcpkgBin = "$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows-release/bin"
-          $sqliteDll = "$vcpkgBin/sqlite3.dll"
 
-          if (-not (Test-Path $sqliteDll)) {
-            throw "SQLite DLL not found: $sqliteDll"
+          if (-not (Test-Path $vcpkgBin)) {
+            throw "vcpkg runtime directory not found: $vcpkgBin"
           }
 
-          Copy-Item "$vcpkgBin/*.dll" $release
+          $runtimeDlls = @(Get-ChildItem "$vcpkgBin/*.dll")
+
+          if ($runtimeDlls.Count -eq 0) {
+            throw "No runtime DLLs found in $vcpkgBin"
+          }
+
+          $runtimeDlls | Copy-Item -Destination $release
 
           Compress-Archive `
             -Path "$release/*" `
